@@ -5,11 +5,17 @@ on:
     paths:
       - 'BKE.SDK.sln'
       - 'global.json'
+      - 'src/BKE.Notifications/**'
+      - 'tests/BKE.Notifications.Tests/**'
+      - '.github/workflows/notifications.yml'
       - '.github/workflows/sdk-certification.yml'
   pull_request:
     paths:
       - 'BKE.SDK.sln'
       - 'global.json'
+      - 'src/BKE.Notifications/**'
+      - 'tests/BKE.Notifications.Tests/**'
+      - '.github/workflows/notifications.yml'
       - '.github/workflows/sdk-certification.yml'
   workflow_dispatch:
   release:
@@ -46,7 +52,7 @@ jobs:
           test -f artifacts/BKE.Desktop.Client.2.0.0.nupkg
           test -f artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
           test -f artifacts/BKE.Updater.0.4.0.nupkg
-          test -f artifacts/BKE.Notifications.0.3.0.nupkg
+          test -f artifacts/BKE.Notifications.0.4.0.nupkg
       - uses: actions/upload-artifact@v4
         with:
           name: bke-sdk-certification

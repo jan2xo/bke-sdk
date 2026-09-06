@@ -6,7 +6,7 @@
 
 It defines typed notification publishing, feed retrieval, lifecycle operations, unread counts, logical actions, and typed failures while leaving transport, persistence, authentication, and presentation to provider/application implementations.
 
-Current package source targets **.NET 10**.
+Current package source targets **.NET 10**. Current package version: **0.4.0**.
 
 ## Capability identity
 
@@ -22,25 +22,50 @@ NotificationCapability.Id
 NotificationCapability.ContractVersion
 ```
 
+Package 0.4.0 does not change contract version 1 semantics. It adds least-privilege interface boundaries around the existing operations.
+
 ## Contract model
 
 ```text
-PRODUCER / PRODUCT
-       ↓
-INotificationClient
-       ↓
-BKE.Notifications contract
-       ↓
-NOTIFICATION PROVIDER
-       ↓
-STORE / TRANSPORT / PRODUCT UI
+PRODUCER
+  -> INotificationPublisher
+
+PRODUCT FEED UI
+  -> INotificationFeedReader
+  -> INotificationLifecycle
+  -> INotificationUnreadCounter
+
+FULL PROVIDER
+  -> INotificationClient
+     = all four capabilities
 ```
 
 The contract describes notification behavior without requiring a specific database, broker, push service, desktop toast system, or UI framework.
 
+## Capability segregation
+
+Consumers should depend on the narrowest contract they need:
+
+```csharp
+INotificationPublisher
+INotificationFeedReader
+INotificationLifecycle
+INotificationUnreadCounter
+```
+
+`INotificationClient` remains the full composite contract and inherits all four interfaces for providers that implement the entire notification experience.
+
+This means a producer that only emits notifications does not gain feed-reading, lifecycle-mutation, or unread-count dependencies. A future Gmail, Telegram, Licensing Agent, or other adapter can implement only the capability contracts that make sense for that provider instead of forcing unrelated semantics into every integration.
+
 ## WHAT I NEED
 
 ### To publish a notification
+
+Depend on:
+
+```csharp
+INotificationPublisher
+```
 
 Use `NotificationPublishRequest` with:
 
@@ -56,6 +81,12 @@ Required text values must be non-empty.
 
 ### To read the feed
 
+Depend on:
+
+```csharp
+INotificationFeedReader
+```
+
 Use `NotificationFeedQuery` with:
 
 - `Limit` — 1 to 200, default 50
@@ -63,14 +94,28 @@ Use `NotificationFeedQuery` with:
 
 ### To change notification state
 
+Depend on:
+
+```csharp
+INotificationLifecycle
+```
+
 Supply the notification ID to:
 
 - `MarkReadAsync(...)`
 - `DismissAsync(...)`
 
-### Provider requirement
+### To read unread count
 
-The consumer needs an implementation of:
+Depend on:
+
+```csharp
+INotificationUnreadCounter
+```
+
+### Full provider requirement
+
+A provider that supports all notification operations may implement:
 
 ```csharp
 INotificationClient
@@ -80,7 +125,7 @@ The SDK does not choose persistence or transport.
 
 ## WHAT I DO
 
-The contract defines these operations:
+The contracts define these operations:
 
 ```csharp
 Task<NotificationPublishResult> PublishAsync(...);
@@ -215,24 +260,24 @@ Current contract supports:
 
 ```text
 PUBLISH
-  input  → NotificationPublishRequest
-  output → NotificationPublishResult
+  interface -> INotificationPublisher
+  input     -> NotificationPublishRequest
+  output    -> NotificationPublishResult
 
 READ FEED
-  input  → NotificationFeedQuery
-  output → NotificationFeedResult
+  interface -> INotificationFeedReader
+  input     -> NotificationFeedQuery
+  output    -> NotificationFeedResult
 
-MARK READ
-  input  → notification ID
-  output → NotificationOperationResult
-
-DISMISS
-  input  → notification ID
-  output → NotificationOperationResult
+MARK READ / DISMISS
+  interface -> INotificationLifecycle
+  input     -> notification ID
+  output    -> NotificationOperationResult
 
 UNREAD COUNT
-  input  → none
-  output → NotificationUnreadCountResult
+  interface -> INotificationUnreadCounter
+  input     -> none
+  output    -> NotificationUnreadCountResult
 ```
 
 ## What this SDK does NOT do
@@ -241,6 +286,8 @@ UNREAD COUNT
 
 - Windows toast / Action Center integration
 - Android/iOS push services
+- Gmail/SMTP delivery
+- Telegram/Viber delivery
 - WebSockets or SSE infrastructure
 - persistence/database implementation
 - Redis/message brokers
@@ -257,9 +304,9 @@ using BKE.Notifications;
 
 public sealed class ProductNotifier
 {
-    private readonly INotificationClient notifications;
+    private readonly INotificationPublisher notifications;
 
-    public ProductNotifier(INotificationClient notifications)
+    public ProductNotifier(INotificationPublisher notifications)
     {
         this.notifications = notifications;
     }
@@ -303,4 +350,4 @@ The consuming product owns:
 - how to react to typed provider errors
 - product-specific filtering and presentation behavior
 
-The product should depend on `INotificationClient`, not on a specific database, broker, or notification service implementation.
+The product should depend on the narrowest notification capability interface it needs, not on a specific database, broker, notification service implementation, or the full `INotificationClient` when only one operation family is required.
