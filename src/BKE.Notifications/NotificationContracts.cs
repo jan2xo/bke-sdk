@@ -287,16 +287,22 @@ public sealed record NotificationUnreadCountResult
     }
 }
 
-public interface INotificationClient
+public interface INotificationPublisher
 {
     Task<NotificationPublishResult> PublishAsync(
         NotificationPublishRequest request,
         CancellationToken cancellationToken = default);
+}
 
+public interface INotificationFeedReader
+{
     Task<NotificationFeedResult> GetFeedAsync(
         NotificationFeedQuery query,
         CancellationToken cancellationToken = default);
+}
 
+public interface INotificationLifecycle
+{
     Task<NotificationOperationResult> MarkReadAsync(
         string notificationId,
         CancellationToken cancellationToken = default);
@@ -304,9 +310,20 @@ public interface INotificationClient
     Task<NotificationOperationResult> DismissAsync(
         string notificationId,
         CancellationToken cancellationToken = default);
+}
 
+public interface INotificationUnreadCounter
+{
     Task<NotificationUnreadCountResult> GetUnreadCountAsync(
         CancellationToken cancellationToken = default);
+}
+
+public interface INotificationClient :
+    INotificationPublisher,
+    INotificationFeedReader,
+    INotificationLifecycle,
+    INotificationUnreadCounter
+{
 }
 
 internal static class ContractValue
