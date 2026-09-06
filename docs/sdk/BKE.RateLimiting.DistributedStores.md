@@ -1,31 +1,82 @@
-# Distributed-store proof for BKE.RateLimiting
+# Distributed-store contract proof
 
-This document is a design review and adapter proof obligation for future Redis/Valkey and PostgreSQL adapters. It is not runtime certification and V1 ships only the in-memory provider. The claims below remain planned until an adapter and fault-injection evidence exist in CI.
+This is an implementability review for future Redis/Valkey and PostgreSQL adapters. V1 includes **only the in-memory provider**. No remote backend, crash recovery, replication, database, or cross-node runtime has been certified. The following obligations must be implemented and tested before claiming adapter conformance.
 
-## Required atomic shape
+## Mapping the public contract to a remote transaction
 
-The store operation receives a structured `(PolicyId, Key)` identity, authoritative store time, a state snapshot, and a pure transition callback. It returns the transition result only after the replacement state is durably committed. The callback must be deterministic and side-effect free. The adapter must expose conflict, unavailable, capacity, and indeterminate-commit outcomes as typed failures.
+| Contract element | Remote responsibility |
+| --- | --- |
+| `RateLimitPartition(PolicyId, Key)` | Collision-safe structured storage identity |
+| `RateLimitStoreRequest.OperationId` | Stable identity for retries of this one engine attempt |
+| `RateLimitStateSnapshot` | Immutable policy configuration, state version, elapsed timestamps, exact counts/events/decimal tokens |
+| `RateLimitStoreContext` | Authoritative shared-domain elapsed TimeSpan ticks plus one UTC observation |
+| Pure transition callback | Deterministic decision and staged replacement computed from that snapshot/time |
+| `RateLimitStoreResult.Committed` | Return only after the atomic result is known |
+| `RateLimitStoreResult.Failed` | Typed non-commit or indeterminate outcome; no provider exception text |
 
-The contract carries an operation identity separately from key identity. It is retained across known contention retries, but independent engine calls are not deduplicated and consumers receive no exactly-once promise. A caller must not infer that a timeout means the permit was not consumed. When commit outcome is unknown, the adapter returns `IndeterminateCommit`; this always blocks, and the adapter never retries blindly.
+A provider executes read → sample store time → evaluate → conditional commit atomically with respect to competing writers. The callback can execute locally under a transaction/optimistic version check; it need not execute inside the database. It may be recomputed only after a **known non-commit**. Never expose a provisional `Allowed` result before commit.
 
-## Redis / Valkey recipe
+Encoding must preserve ordinal key identity, including UTF-16 code units, rather than normalizing case/Unicode or silently replacing malformed surrogate sequences during encoding. Use a length-prefixed exact tuple representation; if a hashed physical key is used, retain and verify the original identity in the value. Keep policy ID, algorithm discriminator, explicit persisted schema version, immutable settings, and state in one consistency unit. Validate all hydrated state: queue order/count/latest event, token bounds, fixed-window alignment, timestamp ordering, and recovery conditions. Do not trust a client-supplied snapshot or TTL.
 
-Redis/Valkey cannot execute the SDK's arbitrary C# pure callback. A portable adapter should `WATCH` the single state key, read the state, obtain server time with `TIME`, run the pure transition locally, then `MULTI`/`EXEC` a conditional replacement. A changed watch key is a known conflict and may be recomputed. An optional Lua/function implementation may perform the complete algorithm only when the adapter has deliberately reimplemented and certified that algorithm; Lua is not a way to serialize a C# callback. Use one key or a same-slot hash tag for the whole atomic partition; cross-slot transactions are not atomic.
+The engine's policy `StateVersion` identifies V1 state. Persist that version in an adapter envelope and reject an unsupported version before constructing a V1 snapshot. The public snapshot is not a prescribed Redis/SQL/JSON format.
 
-Use Redis/Valkey server time (or a documented monotonic server-side time strategy) as the authoritative store domain; do not combine client timestamps from different nodes. Store policy version and algorithm state together. Set TTL only when the state is fully recovered and idle, or to a conservative upper bound that cannot restore a permit through eviction. Sliding-window events and token fractional state must be represented without lossy integer conversion. Adapter certification must state assumptions about eviction policy, replication/failover durability, and the consistency level accepted during failover.
+## Time across nodes and process restarts
 
-Retries are safe only when the script reports a known conflict before mutation. A connection timeout after the server accepted the script is indeterminate. The adapter must return that state, preserve the operation identity, and offer reconciliation. Network retries must not create a second permit.
+The in-memory process clock cannot be copied into a distributed adapter. The adapter must define one durable, shared epoch and measure all context/state timestamps in TimeSpan ticks from it. Client process clocks and raw Stopwatch ticks from different nodes are invalid inputs.
 
-## PostgreSQL recipe
+Redis server `TIME` or PostgreSQL server time can supply the authority. Because these are wall clocks, a provider must document its clock assumptions. Clamp the logical evaluation time to at least the persisted previous time for the locked partition after a backwards jump; never subtract a negative elapsed duration. A forward server-clock jump is an authoritative time advance and may replenish quota, unlike a client UTC jump. If this is unacceptable, the deployment needs a stronger clock policy before the adapter is approved. Metadata UTC can differ from the logical elapsed domain.
 
-Use one transaction with a deterministic keyed row lock (`SELECT ... FOR UPDATE`) or a serializable compare/update loop. Missing rows must be created under the same uniqueness constraint and lock ordering as existing rows; concurrent insert races are retried as known conflicts. Use database time (`clock_timestamp()` or a transaction-consistent documented alternative), clamp backwards UTC projections in the adapter's store time domain, and persist policy identity/version plus JSON or typed algorithm state together. A serialization failure is a known non-commit and may be retried with the same operation identity. A lost connection during commit is indeterminate; do not repeat the mutation without reconciliation.
+Fixed windows use the same epoch across nodes/restarts. Cleanup uses the same time authority and recovery predicate as evaluation. Do not derive TTL from the public UTC `ResetAt`: it is a projection and may be null.
 
-Partition cleanup must not delete a row with active debt or an unexpired sliding event. A cleanup job may delete only a row whose algorithm-specific recovery condition is true and whose lock is held. TTL and cleanup are storage concerns, but their safety condition is part of the adapter's conformance proof.
+## Redis / Valkey proof
 
-## Cross-node and crash semantics
+Redis cannot execute an arbitrary C# callback in Lua. A general adapter can use:
 
-All nodes must use the same authoritative time domain and atomic state owner. Process crash before commit consumes nothing; crash after commit consumes the permit even if the client did not receive the response. Policy-version mismatch is a typed conflict. Fail-open may produce an `Allowed` result with a typed storage failure and unknown usage fields; it must not claim a remaining count. Fail-closed produces `Blocked` with a safe typed error.
+1. `WATCH` the complete partition key.
+2. Read and validate the state, obtain server `TIME`, and construct context in the shared logical domain.
+3. Invoke the pure callback locally.
+4. Issue `MULTI` / `EXEC` with the replacement and any retention metadata.
+5. Return the result only after confirmed success; a watch conflict is a known non-commit and permits bounded recomputation with the same operation ID.
 
-These rules establish implementability without claiming exactly-once delivery or availability during a partition. Adapter certification must include fault injection around timeout-after-commit and process restart.
+A denied result still needs the watched transaction validated so policy conflicts or concurrent updates cannot be ignored. A no-change operation can use a conservative conditional rewrite or another validated no-op transaction pattern.
 
-The Redis transaction and optimistic-locking model described here follows the [Redis transactions documentation](https://redis.io/docs/latest/develop/using-commands/transactions/) and its [WATCH command reference](https://redis.io/docs/latest/commands/watch/). Same-slot requirements for clustered multi-key operations are covered by the [Redis multi-key operations documentation](https://redis.io/docs/latest/develop/using-commands/multi-key-operations/). The PostgreSQL lock and retry guidance follows [explicit row locking](https://www.postgresql.org/docs/current/explicit-locking.html) and [transaction isolation/serialization failures](https://www.postgresql.org/docs/current/transaction-iso.html).
+All atomic state must live in one key, or keys guaranteed to share a cluster hash slot. Supporting an optimized Lua/function path requires deliberately reimplementing and independently certifying the algorithm; it is not serialization of the C# callback. Limit retry count and return `ContentionExhausted` on repeated known conflicts.
+
+Safest V1 adapter design is to retain state without expiration while debt is active and delete it only under the same atomic recovery check. A future TTL optimization must prove it never expires earlier than full recovery, including TTL precision rounding, clock changes, policy changes, and sliding latest-event expiry. Null/unrepresentable recovery forbids an expiry estimate. Redis eviction must not discard active quota; use a suitable dedicated/noeviction configuration and map capacity errors safely.
+
+A disconnect after `EXEC` transmission is `IndeterminateCommit`, even if the caller cancels. Do not call it `StoreUnavailable`, fail open, or automatically repeat the mutation. A future adapter may atomically record an operation receipt with state and reconcile it internally; V1 does not require a receipt service or expose a public reconciliation API.
+
+Cross-node correctness requires all writers and cleanup to use this transaction protocol on the same authority. Redis persistence, acknowledged-write loss during failover, and replication settings are deployment assumptions: atomicity on a primary does not itself establish durable quota across failover.
+
+## PostgreSQL proof
+
+Use a unique constraint on the exact partition identity and a transaction:
+
+1. Insert the missing row with a conflict-safe pattern; resolve concurrent creation under that unique constraint.
+2. Acquire `SELECT ... FOR UPDATE` on the row before reading/evaluating active state.
+3. Sample authoritative database time after obtaining the lock, clamp/convert to the shared logical domain, and run the pure callback.
+4. Persist the replacement/state version and commit.
+5. Return the decision only after confirmed commit.
+
+`clock_timestamp()` sampled after locking avoids using a transaction-start timestamp that became stale while waiting. Serialization failures or known rolled-back unique/lock conflicts may use a bounded retry loop with the same operation ID. A connection loss during `COMMIT` is indeterminate; an ordinary retry could double-consume. A future receipt in the same transaction can support internal reconciliation without changing `IRateLimiter`.
+
+Cleanup must obtain the same row lock, resample database time, and verify full recovery before deleting. It cannot blindly delete by an old timestamp read outside the lock. JSON or typed columns are provider choices; neither may lose decimal token precision or queue ordering/count. Exact column collation/encoding must match ordinal key identity rather than a database's case-insensitive default.
+
+## Failure, cancellation, and crash proof obligations
+
+| Event | Required outcome |
+| --- | --- |
+| Known pre-commit connection failure | `StoreUnavailable`; fail-open allowed only by explicit policy, no recorded usage |
+| Callback failure or caller cancellation before commit | No quota consumption; typed invalid state or caller cancellation as appropriate |
+| Known contention rollback | Bounded recomputation, same operation ID |
+| Lost commit acknowledgement / exception after transmission | `IndeterminateCommit`, always blocked, no blind retry |
+| Process crash after successful commit | Permit remains consumed even if response was never received |
+| Changed configuration for active policy ID/key | `PolicyConflict`, no implicit reset |
+| Full capacity with active debt | Typed capacity failure; no early eviction |
+| Unknown persisted algorithm/version or malformed state | `InvalidState`, no fabricated allowance |
+
+Independent `EvaluateAsync` calls receive new IDs and are never promised deduplication. The contract gives at-most-one mutation per correctly implemented attempt; it does not give exactly-once business operations, availability during a partition, or distributed consensus.
+
+Before an adapter ships, CI must exercise multiple nodes against the real backend, concurrent missing/existing keys, contention retry exhaustion, persistence/restart, policy conflicts, backwards/forwards authoritative time, encoding collisions, active-debt cleanup races, noeviction/capacity behavior, and disconnect/cancellation immediately before and after commit.
+
+This design follows [Redis transactions](https://redis.io/docs/latest/develop/using-commands/transactions/), [WATCH](https://redis.io/docs/latest/commands/watch/), [clustered multi-key operations](https://redis.io/docs/latest/develop/using-commands/multi-key-operations/), [PostgreSQL row locks](https://www.postgresql.org/docs/current/explicit-locking.html), and [serialization failure semantics](https://www.postgresql.org/docs/current/transaction-iso.html). These sources establish backend primitives; they do not certify an unimplemented BKE adapter.

@@ -106,10 +106,10 @@ internal static class RateLimitEvaluator
     private static RateLimitStoreTransition Recorded(RateLimitStateSnapshot state, RateLimitStoreContext context,
         bool allowed, int remaining, decimal retryTicks, decimal recoveryTicks)
     {
-        var retry = TimeSpan.FromTicks((long)Math.Min(long.MaxValue, Math.Max(0, retryTicks)));
+        TimeSpan? retry = retryTicks > long.MaxValue ? null : TimeSpan.FromTicks((long)Math.Max(0, retryTicks));
         var utc = context.ObservedAt.ToUniversalTime();
         var availableDateTicks = DateTimeOffset.MaxValue.UtcTicks - utc.UtcTicks;
-        var reset = utc.AddTicks((long)Math.Min(availableDateTicks, Math.Max(0, recoveryTicks)));
+        DateTimeOffset? reset = recoveryTicks > availableDateTicks ? null : utc.AddTicks((long)Math.Max(0, recoveryTicks));
         return new(state, RateLimitResult.Recorded(allowed ? RateLimitDecision.Allowed : RateLimitDecision.Throttled,
             state.Policy.PolicyId, remaining, retry, reset, utc));
     }

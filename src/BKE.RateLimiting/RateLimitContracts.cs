@@ -61,20 +61,20 @@ public sealed record RateLimitResult
     public bool UsageRecorded => Decision == RateLimitDecision.Allowed && Failure is null;
 
     public static RateLimitResult Recorded(RateLimitDecision decision, string policyId,
-        int remaining, TimeSpan retryAfter, DateTimeOffset resetAt, DateTimeOffset observedAt)
+        int remaining, TimeSpan? retryAfter, DateTimeOffset? resetAt, DateTimeOffset observedAt)
     {
         RateLimitValidation.PolicyId(policyId);
         if (decision is not (RateLimitDecision.Allowed or RateLimitDecision.Throttled))
             throw new ArgumentOutOfRangeException(nameof(decision));
         if (remaining < 0 || remaining > RateLimitCapability.MaximumAllowance)
             throw new ArgumentOutOfRangeException(nameof(remaining));
-        if (retryAfter < TimeSpan.Zero || resetAt < observedAt)
+        if (retryAfter is { } retry && retry < TimeSpan.Zero || resetAt is { } reset && reset < observedAt)
             throw new ArgumentException("Timing values must be nonnegative and ordered.");
         if (decision == RateLimitDecision.Allowed && retryAfter != TimeSpan.Zero)
             throw new ArgumentException("An allowed result has zero retry delay.");
-        if (decision == RateLimitDecision.Throttled && (remaining != 0 || retryAfter <= TimeSpan.Zero))
-            throw new ArgumentException("A throttled result requires zero allowance and a positive retry delay.");
-        return new(decision, policyId, remaining, retryAfter, resetAt.ToUniversalTime(), observedAt, null);
+        if (decision == RateLimitDecision.Throttled && (remaining != 0 || retryAfter is { } delay && delay <= TimeSpan.Zero))
+            throw new ArgumentException("A throttled result requires zero allowance and a positive retry delay when known.");
+        return new(decision, policyId, remaining, retryAfter, resetAt?.ToUniversalTime(), observedAt, null);
     }
 
     public static RateLimitResult Failed(string policyId, RateLimitFailure failure,

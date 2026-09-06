@@ -149,7 +149,7 @@ public sealed class RateLimitBoundaryTests
     }
 
     [Fact]
-    public async Task Huge_delays_saturate_metadata_without_reclaiming_debt()
+    public async Task Huge_delays_use_unknown_metadata_without_reclaiming_debt()
     {
         var clock = new TestTimeProvider();
         clock.SetUtcNow(DateTimeOffset.MaxValue.AddTicks(-1));
@@ -157,12 +157,37 @@ public sealed class RateLimitBoundaryTests
         var limiter = new BkeRateLimiter(store);
         var request = new RateLimitRequest("key", RateLimitPolicy.TokenBucket("p", 1, 0.000001, TimeSpan.FromDays(365)));
         var allowed = await limiter.EvaluateAsync(request);
-        Assert.Equal(DateTimeOffset.MaxValue, allowed.ResetAt);
+        Assert.Null(allowed.ResetAt);
         var denied = await limiter.EvaluateAsync(request);
         Assert.Equal(RateLimitDecision.Throttled, denied.Decision);
-        Assert.Equal(TimeSpan.MaxValue, denied.RetryAfter);
-        Assert.Equal(DateTimeOffset.MaxValue, denied.ResetAt);
+        Assert.Null(denied.RetryAfter);
+        Assert.Null(denied.ResetAt);
         Assert.Equal(0, await store.PruneExpiredAsync());
+        Assert.Equal(1, (await store.GetStatisticsAsync()).PartitionCount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task Near_DateTimeOffset_max_fixed_and_sliding_keep_state_with_unknown_reset(int algorithm)
+    {
+        var clock = new TestTimeProvider();
+        clock.SetUtcNow(DateTimeOffset.MaxValue.AddTicks(-1));
+        using var store = new InMemoryRateLimitStore(clock);
+        var limiter = new BkeRateLimiter(store);
+        RateLimitPolicy policy = algorithm == 0
+            ? RateLimitPolicy.FixedWindow("p", 1, TimeSpan.FromDays(365))
+            : RateLimitPolicy.SlidingWindow("p", 1, TimeSpan.FromDays(365));
+        var request = new RateLimitRequest("key", policy);
+        Assert.True((await limiter.EvaluateAsync(request)).UsageRecorded);
+        var denied = await limiter.EvaluateAsync(request);
+        Assert.Equal(RateLimitDecision.Throttled, denied.Decision);
+        Assert.Null(denied.ResetAt);
+        Assert.Equal(TimeSpan.FromDays(365), denied.RetryAfter);
+        Assert.Equal(1, (await store.GetStatisticsAsync()).PartitionCount);
+        Assert.Equal(0, await store.PruneExpiredAsync());
+        clock.SetUtcNow(DateTimeOffset.MaxValue);
+        Assert.Equal(RateLimitDecision.Throttled, (await limiter.EvaluateAsync(request)).Decision);
     }
 
     [Fact]
