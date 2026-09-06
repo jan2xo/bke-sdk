@@ -4,14 +4,15 @@
 
 ## Active capability family
 
-The current repository contains four independently versioned packages:
+The current repository contains five independently versioned packages:
 
 ```text
 BKE SDK
 ├── BKE.Desktop.Client        2.0.0
 ├── BKE.Desktop.Licensing     2.0.0
 ├── BKE.Updater               0.4.0
-└── BKE.Notifications         0.4.0
+├── BKE.Notifications         0.4.0
+└── BKE.RateLimiting          0.1.0
 ```
 
 A product composes only the capabilities it needs. One repository does not imply one package, one dependency chain, or one CI blast radius.
@@ -180,6 +181,18 @@ Notification feed behavior is part of WHAT I GIVE. Storage is not: databases, fi
 
 Logical actions must not carry executable paths, shell commands, arbitrary URLs, or privilege-bearing targets. The consuming application/provider maps a logical action ID such as `open-update` or `show-license` to approved behavior.
 
+## Rate-limiting capability
+
+`BKE.RateLimiting` 0.1.0 is a portable .NET 10 rate-limiting engine with fixed windows, exact sliding windows, token buckets, and a bounded in-memory store.
+
+The consumer supplies an opaque key and immutable policy to `IRateLimiter.EvaluateAsync`. It receives an invariant-safe `Allowed`, `Throttled`, or `Blocked` result, allowance/timing metadata when known, and typed failure information. One accepted evaluation consumes one permit.
+
+The SDK owns generic evaluation mechanics. Applications own subject selection, policy selection, authentication, authorization, and their reaction to the decision. Rate limiting makes no network calls and has no mandatory HTTP, database, telemetry, or other BKE-package dependency.
+
+Multiple limiter instances share quota by sharing one store. An in-memory store is process-local and loses its state on disposal/restart. An explicit fail-open outage policy can allow an uncounted request; its result carries a typed storage failure and unknown usage facts. Policy/state conflicts and indeterminate commits remain blocked.
+
+See the [capability contract](docs/sdk/BKE.RateLimiting.md), [distributed-store design](docs/sdk/BKE.RateLimiting.DistributedStores.md), [ASP.NET adapter design](docs/sdk/BKE.RateLimiting.AspNetCore.md), and [integration recipes](docs/sdk/BKE.RateLimiting.Recipes.md). V1 ships the core engine and in-memory provider; future backend and host adapters require their own implementation and certification.
+
 ## Package references
 
 Active .NET 10 licensing integrations should use:
@@ -193,6 +206,7 @@ Current reusable capability packages are:
 ```xml
 <PackageReference Include="BKE.Updater" Version="0.4.0" />
 <PackageReference Include="BKE.Notifications" Version="0.4.0" />
+<PackageReference Include="BKE.RateLimiting" Version="0.1.0" />
 ```
 
 ## Per-SDK contract documentation
@@ -229,7 +243,7 @@ Consumer migration is performed repository-by-repository with CI evidence.
 
 The Licensing Agent remains the local trusted provider and owns activation presentation and updater authority-facing responsibilities. BKE Digital Solutions remains the commercial and remote policy authority.
 
-The SDK cannot select trusted keys, write leases, choose privileged helpers, choose install roots, or authorize itself. Unavailable, malformed, unsupported, denied, or failed outcomes remain fail-closed.
+The SDK cannot select trusted keys, write leases, choose privileged helpers, choose install roots, or authorize itself. Authority-facing licensing and updater outcomes remain fail-closed when unavailable, malformed, unsupported, denied, or failed. Rate-limiting storage-failure policy is separately and explicitly selected by its consumer.
 
 The local product-to-Agent transport is currently ordinary loopback HTTP. It does not cryptographically authenticate the process that owns `127.0.0.1:43873`; process authenticity is a shared protocol-boundary hardening item and must not be "solved" by embedding authority or private keys in product code.
 

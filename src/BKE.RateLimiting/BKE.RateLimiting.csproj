@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework><RootNamespace>BKE.RateLimiting</RootNamespace><AssemblyName>BKE.RateLimiting</AssemblyName>
+    <Version>0.1.0</Version><PackageVersion>0.1.0</PackageVersion><PackageId>BKE.RateLimiting</PackageId>
+    <Authors>BKE Digital Solutions</Authors><Description>Product-neutral bounded rate limiting capability for BKE software.</Description>
+    <PackageTags>bke;sdk;rate-limiting;security;dotnet</PackageTags><RepositoryUrl>https://github.com/jan2xo/bke-sdk</RepositoryUrl><RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE-BKE-PROPRIETARY.txt</PackageLicenseFile><PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile><NoWarn>$(NoWarn);1591</NoWarn>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup><None Include="../../LICENSE-BKE-PROPRIETARY.txt" Pack="true" PackagePath="LICENSE-BKE-PROPRIETARY.txt" /><None Include="../../README.md" Pack="true" PackagePath="README.md" /></ItemGroup>
+</Project>

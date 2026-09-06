@@ -18,6 +18,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BKE.Notifications", "src\BK
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BKE.Notifications.Tests", "tests\BKE.Notifications.Tests\BKE.Notifications.Tests.csproj", "{B2D4B25E-7D4A-4CBD-E78D-A3BF10B9F814}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BKE.RateLimiting", "src\BKE.RateLimiting\BKE.RateLimiting.csproj", "{CE480DE0-395A-4E79-B91F-10558DDD8201}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BKE.RateLimiting.Tests", "tests\BKE.RateLimiting.Tests\BKE.RateLimiting.Tests.csproj", "{CE480DE0-395A-4E79-B91F-10558DDD8202}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,5 +60,13 @@ Global
 		{B2D4B25E-7D4A-4CBD-E78D-A3BF10B9F814}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B2D4B25E-7D4A-4CBD-E78D-A3BF10B9F814}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B2D4B25E-7D4A-4CBD-E78D-A3BF10B9F814}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE480DE0-395A-4E79-B91F-10558DDD8201}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE480DE0-395A-4E79-B91F-10558DDD8201}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE480DE0-395A-4E79-B91F-10558DDD8201}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE480DE0-395A-4E79-B91F-10558DDD8201}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE480DE0-395A-4E79-B91F-10558DDD8202}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE480DE0-395A-4E79-B91F-10558DDD8202}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE480DE0-395A-4E79-B91F-10558DDD8202}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE480DE0-395A-4E79-B91F-10558DDD8202}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

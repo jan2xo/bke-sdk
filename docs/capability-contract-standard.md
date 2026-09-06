@@ -37,6 +37,7 @@ A capability contract describes what a module needs and gives. It does not expos
 bke-sdk
 ├── BKE.Updater       (code, tests, NuGet, CI)
 ├── BKE.Notifications (code, tests, NuGet, CI)
+├── BKE.RateLimiting  (engine, in-memory store, tests, NuGet, CI)
 └── Full SDK Certification (deliberate only)
 ```
 
@@ -111,6 +112,14 @@ The notification feed is capability behavior: it is part of WHAT I GIVE. The per
 Logical notification actions contain only an action identifier and display label. They must not carry arbitrary URLs, shell commands, executable paths, installer paths, privilege-bearing targets, or other command authority.
 
 Operating-system toasts, push services, message brokers, persistence providers, remote transport, and product UI are adapters/presentation layers outside the portable notification contract.
+
+## Rate-limiting contract
+
+`BKE.RateLimiting` provides the `bke.rate-limiting` contract, version 1. Its consumer supplies an opaque key and policy; it receives an allowed, throttled, or blocked decision with known allowance/timing facts and typed storage failures. Authentication, key interpretation, business policy, and host response stay with the consumer.
+
+The engine owns pure algorithm transitions. A selected store commits each transition atomically in its own authoritative time domain. V1 includes a bounded in-memory store. Future distributed stores must distinguish known non-commit from indeterminate commit and must never silently evict active quota debt. Fail-open acceptance must remain distinguishable from counted allowance.
+
+See [the dedicated guide](sdk/BKE.RateLimiting.md) for exact invariants, resource bounds, cancellation, failure policy, and certification limits.
 
 ## .NET 10 baseline
 
