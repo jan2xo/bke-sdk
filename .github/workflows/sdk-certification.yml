@@ -5,6 +5,9 @@ on:
     paths:
       - 'BKE.SDK.sln'
       - 'global.json'
+      - 'src/BKE.RateLimiting/**'
+      - 'tests/BKE.RateLimiting.Tests/**'
+      - '.github/workflows/rate-limiting.yml'
       - 'src/BKE.Notifications/**'
       - 'tests/BKE.Notifications.Tests/**'
       - '.github/workflows/notifications.yml'
@@ -13,6 +16,9 @@ on:
     paths:
       - 'BKE.SDK.sln'
       - 'global.json'
+      - 'src/BKE.RateLimiting/**'
+      - 'tests/BKE.RateLimiting.Tests/**'
+      - '.github/workflows/rate-limiting.yml'
       - 'src/BKE.Notifications/**'
       - 'tests/BKE.Notifications.Tests/**'
       - '.github/workflows/notifications.yml'
@@ -40,11 +46,13 @@ jobs:
       - run: dotnet test tests/BKE.Desktop.Licensing.Tests/BKE.Desktop.Licensing.Tests.csproj --configuration Release --no-build
       - run: dotnet test tests/BKE.Updater.Tests/BKE.Updater.Tests.csproj --configuration Release --no-build
       - run: dotnet test tests/BKE.Notifications.Tests/BKE.Notifications.Tests.csproj --configuration Release --no-build
+      - run: dotnet test tests/BKE.RateLimiting.Tests/BKE.RateLimiting.Tests.csproj --configuration Release --no-build
       - run: mkdir -p artifacts
       - run: dotnet pack src/BKE.Desktop.Client/BKE.Desktop.Client.csproj --configuration Release --no-build --output artifacts
       - run: dotnet pack src/BKE.Desktop.Licensing/BKE.Desktop.Licensing.csproj --configuration Release --no-build --output artifacts
       - run: dotnet pack src/BKE.Updater/BKE.Updater.csproj --configuration Release --no-build --output artifacts
       - run: dotnet pack src/BKE.Notifications/BKE.Notifications.csproj --configuration Release --no-build --output artifacts
+      - run: dotnet pack src/BKE.RateLimiting/BKE.RateLimiting.csproj --configuration Release --no-build --output artifacts
       - name: Verify hardened capability package versions
         shell: bash
         run: |
@@ -53,6 +61,7 @@ jobs:
           test -f artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
           test -f artifacts/BKE.Updater.0.4.0.nupkg
           test -f artifacts/BKE.Notifications.0.4.0.nupkg
+          test -f artifacts/BKE.RateLimiting.0.1.0.nupkg
       - uses: actions/upload-artifact@v4
         with:
           name: bke-sdk-certification
