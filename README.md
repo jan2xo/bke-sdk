@@ -11,7 +11,7 @@ BKE SDK
 ├── BKE.Desktop.Client        2.0.0
 ├── BKE.Desktop.Licensing     2.0.0
 ├── BKE.Updater               0.4.0
-└── BKE.Notifications         0.3.0
+└── BKE.Notifications         0.4.0
 ```
 
 A product composes only the capabilities it needs. One repository does not imply one package, one dependency chain, or one CI blast radius.
@@ -154,6 +154,17 @@ CAPABILITY: bke.notifications
 CONTRACT VERSION: 1
 ```
 
+Starting with `BKE.Notifications` 0.4.0, consumers can depend on the narrowest notification capability they actually need:
+
+```text
+INotificationPublisher
+INotificationFeedReader
+INotificationLifecycle
+INotificationUnreadCounter
+```
+
+`INotificationClient` remains the full composite contract and inherits all four interfaces. This lets producer modules depend only on publishing while feed UIs and full providers opt into their own operation families. Provider-specific transports such as Licensing Agent, Gmail, Telegram, Viber, local persistence, or future services remain adapters outside the portable contract.
+
 The portable contract separates:
 
 - publish acceptance/rejection/failure
@@ -181,7 +192,7 @@ Current reusable capability packages are:
 
 ```xml
 <PackageReference Include="BKE.Updater" Version="0.4.0" />
-<PackageReference Include="BKE.Notifications" Version="0.3.0" />
+<PackageReference Include="BKE.Notifications" Version="0.4.0" />
 ```
 
 ## Per-SDK contract documentation
@@ -203,7 +214,7 @@ SECURITY / PROVIDER BOUNDARY
 
 `BKE.Updater` 0.2.0 remains the immutable scaffold artifact. `BKE.Updater` 0.3.0 remains the immutable hardened-contract release. `BKE.Updater` 0.4.0 adds the default Licensing Agent client without changing contract v1 semantics.
 
-`BKE.Notifications` 0.2.0 remains the immutable scaffold artifact and 0.3.0 is the hardened notification contract.
+`BKE.Notifications` 0.2.0 remains the immutable scaffold artifact. `BKE.Notifications` 0.3.0 remains the hardened notification contract. `BKE.Notifications` 0.4.0 adds least-privilege publish/feed/lifecycle/unread capability interfaces while preserving contract v1 semantics and `INotificationClient` compatibility.
 
 The active .NET 10 desktop successors are:
 
