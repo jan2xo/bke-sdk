@@ -5,6 +5,9 @@ on:
     paths:
       - 'BKE.SDK.sln'
       - 'global.json'
+      - 'src/BKE.Notifications/**'
+      - 'tests/BKE.Notifications.Tests/**'
+      - '.github/workflows/notifications.yml'
       - '.github/workflows/sdk-certification.yml'
   pull_request:
     paths:
