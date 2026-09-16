@@ -4,11 +4,11 @@
     <RootNamespace>BKE.Notifications</RootNamespace>
     <AssemblyName>BKE.Notifications</AssemblyName>
     <PackageId>BKE.Notifications</PackageId>
-    <Version>0.4.0</Version>
-    <PackageVersion>0.4.0</PackageVersion>
+    <Version>0.5.0</Version>
+    <PackageVersion>0.5.0</PackageVersion>
     <Authors>BKE Digital Solutions</Authors>
-    <Description>Product-neutral software-side notification capability contracts.</Description>
-    <PackageReleaseNotes>Adds least-privilege publish, feed, lifecycle, and unread-count capability interfaces while preserving INotificationClient as the full composite contract and keeping transport, persistence, UI, and producer authentication outside the portable package.</PackageReleaseNotes>
+    <Description>Product-neutral notification contracts with a least-privilege Licensing Agent inbox provider.</Description>
+    <PackageReleaseNotes>Adds BkeNotificationInboxClient for Agent-backed feed, read, dismiss, and unread-count operations. Publishing remains intentionally excluded from the concrete product-facing provider.</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/jan2xo/bke-sdk</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE-BKE-PROPRIETARY.txt</PackageLicenseFile>
