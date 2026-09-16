@@ -13,6 +13,8 @@ namespace BKE.Notifications.Tests;
 
 public sealed class NotificationAgentInboxClientTests
 {
+    private const string InstallationId = "install-render-dock-1";
+
     [Fact]
     public void Concrete_agent_inbox_is_not_a_notification_publisher()
     {
@@ -24,7 +26,7 @@ public sealed class NotificationAgentInboxClientTests
     }
 
     [Fact]
-    public async Task Feed_posts_only_product_context_and_query_to_fixed_agent_route()
+    public async Task Feed_posts_only_installation_bound_context_and_query_to_fixed_agent_route()
     {
         string? path = null;
         string? body = null;
@@ -36,7 +38,7 @@ public sealed class NotificationAgentInboxClientTests
         });
 
         using var http = new HttpClient(handler);
-        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", http);
+        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", InstallationId, http);
 
         var result = await client.GetFeedAsync(new NotificationFeedQuery(25));
 
@@ -46,9 +48,10 @@ public sealed class NotificationAgentInboxClientTests
         var root = document.RootElement;
         Assert.Equal("bke-render-dock", root.GetProperty("product_id").GetString());
         Assert.Equal("1.0.2", root.GetProperty("version").GetString());
+        Assert.Equal(InstallationId, root.GetProperty("installation_id").GetString());
         Assert.Equal(25, root.GetProperty("limit").GetInt32());
         Assert.False(root.GetProperty("include_dismissed").GetBoolean());
-        Assert.Equal(4, root.EnumerateObject().Count());
+        Assert.Equal(5, root.EnumerateObject().Count());
     }
 
     [Fact]
@@ -56,7 +59,7 @@ public sealed class NotificationAgentInboxClientTests
     {
         var handler = new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, FeedJson())));
         using var http = new HttpClient(handler);
-        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", http);
+        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", InstallationId, http);
 
         var feed = await client.GetFeedAsync(new NotificationFeedQuery());
 
@@ -74,7 +77,7 @@ public sealed class NotificationAgentInboxClientTests
     [Theory]
     [InlineData("mark-read", NotificationOperationStatus.Succeeded)]
     [InlineData("dismiss", NotificationOperationStatus.Succeeded)]
-    public async Task Lifecycle_posts_notification_id_to_expected_agent_route(
+    public async Task Lifecycle_posts_installation_bound_notification_id_to_expected_agent_route(
         string operation,
         NotificationOperationStatus expected)
     {
@@ -87,7 +90,7 @@ public sealed class NotificationAgentInboxClientTests
             return Json(HttpStatusCode.OK, OperationJson("Succeeded"));
         });
         using var http = new HttpClient(handler);
-        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", http);
+        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", InstallationId, http);
 
         var result = operation == "mark-read"
             ? await client.MarkReadAsync("notice-1")
@@ -97,7 +100,8 @@ public sealed class NotificationAgentInboxClientTests
         Assert.Equal($"http://127.0.0.1:43873/v1/notifications/{operation}", path);
         using var document = JsonDocument.Parse(body!);
         Assert.Equal("notice-1", document.RootElement.GetProperty("notification_id").GetString());
-        Assert.Equal(3, document.RootElement.EnumerateObject().Count());
+        Assert.Equal(InstallationId, document.RootElement.GetProperty("installation_id").GetString());
+        Assert.Equal(4, document.RootElement.EnumerateObject().Count());
     }
 
     [Fact]
@@ -105,7 +109,7 @@ public sealed class NotificationAgentInboxClientTests
     {
         var handler = new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, UnreadJson(3))));
         using var http = new HttpClient(handler);
-        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", http);
+        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", InstallationId, http);
 
         var result = await client.GetUnreadCountAsync();
 
@@ -119,7 +123,7 @@ public sealed class NotificationAgentInboxClientTests
         var json = FeedJson().Replace("\"bke.notifications\"", "\"wrong.capability\"");
         var handler = new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, json)));
         using var http = new HttpClient(handler);
-        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", http);
+        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", InstallationId, http);
 
         var result = await client.GetFeedAsync(new NotificationFeedQuery());
 
@@ -140,7 +144,7 @@ public sealed class NotificationAgentInboxClientTests
             """;
         var handler = new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.ServiceUnavailable, json)));
         using var http = new HttpClient(handler);
-        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", http);
+        using var client = BkeNotificationInboxClient.Create("bke-render-dock", "1.0.2", InstallationId, http);
 
         var result = await client.GetFeedAsync(new NotificationFeedQuery());
 
