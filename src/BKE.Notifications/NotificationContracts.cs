@@ -29,6 +29,12 @@ public enum NotificationCategory
     System
 }
 
+public enum NotificationDeliveryMode
+{
+    Once,
+    EveryLaunch
+}
+
 public sealed record NotificationAction
 {
     public string Id { get; }
@@ -151,6 +157,7 @@ public sealed record NotificationItem
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset? ExpiresAt { get; }
     public NotificationState State { get; }
+    public NotificationDeliveryMode DeliveryMode { get; }
     public IReadOnlyList<NotificationAction> Actions { get; }
 
     public NotificationItem(
@@ -163,7 +170,8 @@ public sealed record NotificationItem
         NotificationCategory category = NotificationCategory.General,
         NotificationSeverity severity = NotificationSeverity.Information,
         IReadOnlyList<NotificationAction>? actions = null,
-        DateTimeOffset? expiresAt = null)
+        DateTimeOffset? expiresAt = null,
+        NotificationDeliveryMode deliveryMode = NotificationDeliveryMode.Once)
     {
         Id = ContractValue.Require(id, nameof(id));
         Source = ContractValue.Require(source, nameof(source));
@@ -175,6 +183,7 @@ public sealed record NotificationItem
         Severity = severity;
         Actions = actions?.ToArray() ?? Array.Empty<NotificationAction>();
         ExpiresAt = expiresAt;
+        DeliveryMode = deliveryMode;
     }
 }
 
@@ -274,7 +283,7 @@ public sealed record NotificationUnreadCountResult
     {
         if (count < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(count), "Unread count cannot be negative.");
+            throw new ArgumentOutOfRangeException(nameof(count), "Limit must be between 1 and 200.");
         }
 
         return new NotificationUnreadCountResult(count, null);
