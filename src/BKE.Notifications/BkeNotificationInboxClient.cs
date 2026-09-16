@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -24,16 +23,21 @@ public sealed class BkeNotificationInboxClient :
 
     private readonly string productId;
     private readonly string version;
+    private readonly string installationId;
     private readonly HttpClient httpClient;
     private readonly bool ownsHttpClient;
 
-    public static BkeNotificationInboxClient Create(string productId, string version)
+    public static BkeNotificationInboxClient Create(
+        string productId,
+        string version,
+        string installationId)
     {
-        ValidateContext(productId, version);
+        ValidateContext(productId, version, installationId);
         var handler = CreateDefaultHandler();
         return new BkeNotificationInboxClient(
             productId,
             version,
+            installationId,
             new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan },
             owns: true);
     }
@@ -41,12 +45,14 @@ public sealed class BkeNotificationInboxClient :
     internal static BkeNotificationInboxClient Create(
         string productId,
         string version,
+        string installationId,
         HttpClient httpClient)
     {
-        ValidateContext(productId, version);
+        ValidateContext(productId, version, installationId);
         return new BkeNotificationInboxClient(
             productId,
             version,
+            installationId,
             httpClient ?? throw new ArgumentNullException(nameof(httpClient)),
             owns: false);
     }
@@ -61,11 +67,13 @@ public sealed class BkeNotificationInboxClient :
     private BkeNotificationInboxClient(
         string productId,
         string version,
+        string installationId,
         HttpClient httpClient,
         bool owns)
     {
         this.productId = productId;
         this.version = version;
+        this.installationId = installationId;
         this.httpClient = httpClient;
         ownsHttpClient = owns;
     }
@@ -80,7 +88,7 @@ public sealed class BkeNotificationInboxClient :
             using var timeout = LinkedTimeout(cancellationToken);
             using var response = await httpClient.PostAsJsonAsync(
                 new Uri(DefaultAgentBaseAddress, "v1/notifications/feed"),
-                new AgentFeedRequest(productId, version, query.Limit, query.IncludeDismissed),
+                new AgentFeedRequest(productId, version, installationId, query.Limit, query.IncludeDismissed),
                 timeout.Token).ConfigureAwait(false);
 
             var document = await ReadAsync<AgentFeedResponse>(response, timeout.Token).ConfigureAwait(false);
@@ -137,7 +145,7 @@ public sealed class BkeNotificationInboxClient :
             using var timeout = LinkedTimeout(cancellationToken);
             using var response = await httpClient.PostAsJsonAsync(
                 new Uri(DefaultAgentBaseAddress, "v1/notifications/unread-count"),
-                new AgentContextRequest(productId, version),
+                new AgentContextRequest(productId, version, installationId),
                 timeout.Token).ConfigureAwait(false);
 
             var document = await ReadAsync<AgentUnreadResponse>(response, timeout.Token).ConfigureAwait(false);
@@ -180,7 +188,7 @@ public sealed class BkeNotificationInboxClient :
             using var timeout = LinkedTimeout(cancellationToken);
             using var response = await httpClient.PostAsJsonAsync(
                 new Uri(DefaultAgentBaseAddress, relativePath),
-                new AgentLifecycleRequest(productId, version, notificationId),
+                new AgentLifecycleRequest(productId, version, installationId, notificationId),
                 timeout.Token).ConfigureAwait(false);
 
             var document = await ReadAsync<AgentOperationResponse>(response, timeout.Token).ConfigureAwait(false);
@@ -288,12 +296,14 @@ public sealed class BkeNotificationInboxClient :
     private static NotificationUnreadCountResult CountFailure(NotificationErrorCode code, string message, bool retryable = false) =>
         NotificationUnreadCountResult.Failed(new NotificationError(code, message, retryable));
 
-    private static void ValidateContext(string productId, string version)
+    private static void ValidateContext(string productId, string version, string installationId)
     {
         if (string.IsNullOrWhiteSpace(productId))
             throw new ArgumentException("A product identifier is required.", nameof(productId));
         if (string.IsNullOrWhiteSpace(version))
             throw new ArgumentException("A product version is required.", nameof(version));
+        if (string.IsNullOrWhiteSpace(installationId))
+            throw new ArgumentException("An installation identifier is required.", nameof(installationId));
     }
 
     public void Dispose()
@@ -304,17 +314,20 @@ public sealed class BkeNotificationInboxClient :
 
     private sealed record AgentContextRequest(
         [property: JsonPropertyName("product_id")] string ProductId,
-        [property: JsonPropertyName("version")] string Version);
+        [property: JsonPropertyName("version")] string Version,
+        [property: JsonPropertyName("installation_id")] string InstallationId);
 
     private sealed record AgentFeedRequest(
         [property: JsonPropertyName("product_id")] string ProductId,
         [property: JsonPropertyName("version")] string Version,
+        [property: JsonPropertyName("installation_id")] string InstallationId,
         [property: JsonPropertyName("limit")] int Limit,
         [property: JsonPropertyName("include_dismissed")] bool IncludeDismissed);
 
     private sealed record AgentLifecycleRequest(
         [property: JsonPropertyName("product_id")] string ProductId,
         [property: JsonPropertyName("version")] string Version,
+        [property: JsonPropertyName("installation_id")] string InstallationId,
         [property: JsonPropertyName("notification_id")] string NotificationId);
 
     private sealed record AgentFeedResponse(
