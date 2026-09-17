@@ -52,7 +52,7 @@ jobs:
           test -f artifacts/BKE.Desktop.Client.2.0.0.nupkg
           test -f artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
           test -f artifacts/BKE.Updater.0.4.0.nupkg
-          test -f artifacts/BKE.Notifications.0.4.0.nupkg
+          test -f artifacts/BKE.Notifications.0.5.0.nupkg
       - uses: actions/upload-artifact@v4
         with:
           name: bke-sdk-certification

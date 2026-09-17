@@ -78,6 +78,20 @@ public class NotificationCapabilitySegregationTests
             contracts);
     }
 
+    [Fact]
+    public void Agent_inbox_client_exposes_tray_capabilities_without_publish_authority()
+    {
+        var contracts = typeof(BkeNotificationInboxClient)
+            .GetInterfaces()
+            .ToArray();
+
+        Assert.Contains(typeof(INotificationFeedReader), contracts);
+        Assert.Contains(typeof(INotificationLifecycle), contracts);
+        Assert.Contains(typeof(INotificationUnreadCounter), contracts);
+        Assert.DoesNotContain(typeof(INotificationPublisher), contracts);
+        Assert.DoesNotContain(typeof(INotificationClient), contracts);
+    }
+
     private sealed class ProductNotificationProducer
     {
         private readonly INotificationPublisher publisher;
