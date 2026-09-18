@@ -4,13 +4,13 @@
     <AssemblyName>BKE.Desktop.Licensing</AssemblyName>
     <RootNamespace>BKE.Desktop.Licensing</RootNamespace>
 
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <PackageId>BKE.Desktop.Licensing</PackageId>
     <PackageTitle>BKE Desktop Licensing SDK</PackageTitle>
     <Authors>BKE Digital Solutions</Authors>
     <Description>Typed .NET 10 licensing capability for BKE desktop products, including authorization and Agent-owned activation presentation.</Description>
     <PackageTags>bke;desktop;sdk;licensing;licensing-agent;dotnet</PackageTags>
-    <PackageReleaseNotes>.NET 10 hardened licensing capability. BKE.Desktop.Client 1.0.0 remains a frozen historical compatibility package.</PackageReleaseNotes>
+    <PackageReleaseNotes>Recover signed-but-stale licensing authority through the Agent-owned License Center while preserving fail-closed authorization.</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/jan2xo/bke-sdk</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE-BKE-PROPRIETARY.txt</PackageLicenseFile>
