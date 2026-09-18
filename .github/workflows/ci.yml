@@ -32,7 +32,7 @@ jobs:
       LICENSING_PROJECT: src/BKE.Desktop.Licensing/BKE.Desktop.Licensing.csproj
       LEGACY_TEST_PROJECT: tests/BKE.Desktop.Client.Tests/BKE.Desktop.Client.Tests.csproj
       LICENSING_TEST_PROJECT: tests/BKE.Desktop.Licensing.Tests/BKE.Desktop.Licensing.Tests.csproj
-      PACKAGE_PATH: artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
+      PACKAGE_PATH: artifacts/BKE.Desktop.Licensing.2.0.1.nupkg
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -111,7 +111,7 @@ jobs:
 
           unzip -p "$PACKAGE_PATH" BKE.Desktop.Licensing.nuspec > package.nuspec
           grep -q '<id>BKE.Desktop.Licensing</id>' package.nuspec
-          grep -q '<version>2.0.0</version>' package.nuspec
+          grep -q '<version>2.0.1</version>' package.nuspec
           grep -q '<readme>README.md</readme>' package.nuspec
           grep -q '<license type="file">LICENSE-BKE-PROPRIETARY.txt</license>' package.nuspec
 
@@ -134,9 +134,9 @@ jobs:
       - name: Upload licensing package and test evidence
         uses: actions/upload-artifact@v7
         with:
-          name: BKE.Desktop.Licensing-2.0.0
+          name: BKE.Desktop.Licensing-2.0.1
           path: |
-            artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
+            artifacts/BKE.Desktop.Licensing.2.0.1.nupkg
             test-results/legacy/legacy.trx
             test-results/licensing/licensing.trx
           if-no-files-found: error
