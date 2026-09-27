@@ -62,6 +62,87 @@ public sealed class LicensingClientTests
         Assert.Equal(3, calls);
     }
 
+    [Theory]
+    [InlineData("lease_expired")]
+    [InlineData("lease_version_rejected")]
+    [InlineData("lease_revoked")]
+    [InlineData("lease_superseded")]
+    [InlineData("lease_authority_mismatch")]
+    [InlineData("unverifiable_signed_lease")]
+    public async Task Authorize_maps_recoverable_authority_failures(string reason)
+    {
+        using var http = new HttpClient(new CallbackHandler(_ => Task.FromResult(
+            Json(HttpStatusCode.OK, $"{{\"authorized\":false,\"reason\":\"{reason}\"}}"))));
+
+        using var client = BkeLicensingClient.Create(http);
+        var result = await client.AuthorizeAsync(
+            "bke-product", "1.0.0", "installation-1");
+
+        Assert.Equal(AuthorizationStatus.RecoveryRequired, result.Status);
+        Assert.Equal(reason, result.Reason);
+    }
+
+    [Fact]
+    public async Task EnsureAuthorized_recovery_required_opens_agent_center_and_reauthorizes()
+    {
+        var calls = 0;
+        using var http = new HttpClient(new CallbackHandler(async request =>
+        {
+            calls++;
+            if (calls == 1)
+            {
+                Assert.EndsWith("/v1/authorize", request.RequestUri!.AbsoluteUri);
+                return Json(HttpStatusCode.OK, "{\"authorized\":false,\"reason\":\"lease_version_rejected\"}");
+            }
+
+            if (calls == 2)
+            {
+                Assert.EndsWith("/v1/license-center/open", request.RequestUri!.AbsoluteUri);
+                var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+                var correlation = body.RootElement.GetProperty("correlation_id").GetString();
+                return Json(HttpStatusCode.OK,
+                    $"{{\"outcome\":\"authorization_refreshed\",\"reason\":\"\",\"correlation_id\":\"{correlation}\"}}");
+            }
+
+            Assert.EndsWith("/v1/authorize", request.RequestUri!.AbsoluteUri);
+            return Json(HttpStatusCode.OK, "{\"authorized\":true,\"reason\":\"authorized\"}");
+        }));
+
+        using var client = BkeLicensingClient.Create(http);
+        var result = await client.EnsureAuthorizedAsync(
+            "bke-product", "1.0.0", "installation-1",
+            new LicensingFlowOptions
+            {
+                ActivationInteraction = ActivationInteraction.NativeDesktop,
+                AuthorizationRefreshTimeout = TimeSpan.FromSeconds(2),
+                AuthorizationRefreshInterval = TimeSpan.FromMilliseconds(10)
+            });
+
+        Assert.Equal(AuthorizationStatus.Authorized, result.Status);
+        Assert.Equal(3, calls);
+    }
+
+    [Fact]
+    public async Task EnsureAuthorized_none_returns_recovery_required_without_presenting_ui()
+    {
+        var calls = 0;
+        using var http = new HttpClient(new CallbackHandler(_ =>
+        {
+            calls++;
+            return Task.FromResult(Json(HttpStatusCode.OK,
+                "{\"authorized\":false,\"reason\":\"lease_expired\"}"));
+        }));
+
+        using var client = BkeLicensingClient.Create(http);
+        var result = await client.EnsureAuthorizedAsync(
+            "bke-product", "1.0.0", "installation-1",
+            new LicensingFlowOptions { ActivationInteraction = ActivationInteraction.None });
+
+        Assert.Equal(AuthorizationStatus.RecoveryRequired, result.Status);
+        Assert.Equal("lease_expired", result.Reason);
+        Assert.Equal(1, calls);
+    }
+
     [Fact]
     public async Task EnsureAuthorized_none_returns_activation_required_without_presenting_ui()
     {

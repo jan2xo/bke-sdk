@@ -9,6 +9,12 @@ on:
       - 'global.json'
       - 'src/BKE.Notifications/**'
       - 'tests/BKE.Notifications.Tests/**'
+      - 'src/BKE.Desktop.Licensing/**'
+      - 'tests/BKE.Desktop.Licensing.Tests/**'
+      - '.github/workflows/ci.yml'
+      - 'src/BKE.Desktop.Licensing/**'
+      - 'tests/BKE.Desktop.Licensing.Tests/**'
+      - '.github/workflows/ci.yml'
       - '.github/workflows/notifications.yml'
       - '.github/workflows/sdk-certification.yml'
   pull_request:
@@ -52,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f artifacts/BKE.Desktop.Client.2.0.0.nupkg
-          test -f artifacts/BKE.Desktop.Licensing.2.0.0.nupkg
+          test -f artifacts/BKE.Desktop.Licensing.2.0.1.nupkg
           test -f artifacts/BKE.Updater.0.4.0.nupkg
           test -f artifacts/BKE.Notifications.0.5.0.nupkg
       - uses: actions/upload-artifact@v4
