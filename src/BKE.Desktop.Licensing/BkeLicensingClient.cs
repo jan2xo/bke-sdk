@@ -82,14 +82,7 @@ public sealed class BkeLicensingClient : IDisposable
             if (decision.Authorized.Value)
                 return new(AuthorizationStatus.Authorized, decision.Reason);
 
-            var status = decision.Reason.Equals("activation_required", StringComparison.OrdinalIgnoreCase)
-                ? AuthorizationStatus.ActivationRequired
-                : decision.Reason.Equals("unsupported", StringComparison.OrdinalIgnoreCase)
-                    || decision.Reason.Equals("unsupported_product", StringComparison.OrdinalIgnoreCase)
-                    || decision.Reason.Equals("unsupported_version", StringComparison.OrdinalIgnoreCase)
-                    ? AuthorizationStatus.Unsupported
-                    : AuthorizationStatus.Denied;
-
+            var status = MapAuthorizationReason(decision.Reason);
             return new(status, decision.Reason);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -193,7 +186,7 @@ public sealed class BkeLicensingClient : IDisposable
         var authorization = await AuthorizeAsync(
             productId, version, installationId, cancellationToken).ConfigureAwait(false);
 
-        if (authorization.Status != AuthorizationStatus.ActivationRequired)
+        if (!RequiresLicenseCenterRecovery(authorization.Status))
             return authorization;
 
         switch (options.ActivationInteraction)
@@ -275,7 +268,7 @@ public sealed class BkeLicensingClient : IDisposable
             var result = await AuthorizeAsync(
                 productId, version, installationId, cancellationToken).ConfigureAwait(false);
 
-            if (result.Status != AuthorizationStatus.ActivationRequired)
+            if (!RequiresLicenseCenterRecovery(result.Status))
                 return result;
 
             var remaining = deadline - DateTime.UtcNow;
@@ -292,6 +285,34 @@ public sealed class BkeLicensingClient : IDisposable
         return new(AuthorizationStatus.Timeout,
             "Activation completed but authorization did not refresh in time.");
     }
+
+    private static AuthorizationStatus MapAuthorizationReason(string reason)
+    {
+        if (reason.Equals("activation_required", StringComparison.OrdinalIgnoreCase))
+            return AuthorizationStatus.ActivationRequired;
+
+        if (reason.Equals("lease_expired", StringComparison.OrdinalIgnoreCase) ||
+            reason.Equals("lease_version_rejected", StringComparison.OrdinalIgnoreCase) ||
+            reason.Equals("lease_revoked", StringComparison.OrdinalIgnoreCase) ||
+            reason.Equals("lease_superseded", StringComparison.OrdinalIgnoreCase) ||
+            reason.Equals("lease_authority_mismatch", StringComparison.OrdinalIgnoreCase) ||
+            reason.Equals("unverifiable_signed_lease", StringComparison.OrdinalIgnoreCase))
+        {
+            return AuthorizationStatus.RecoveryRequired;
+        }
+
+        if (reason.Equals("unsupported", StringComparison.OrdinalIgnoreCase) ||
+            reason.Equals("unsupported_product", StringComparison.OrdinalIgnoreCase) ||
+            reason.Equals("unsupported_version", StringComparison.OrdinalIgnoreCase))
+        {
+            return AuthorizationStatus.Unsupported;
+        }
+
+        return AuthorizationStatus.Denied;
+    }
+
+    private static bool RequiresLicenseCenterRecovery(AuthorizationStatus status) =>
+        status is AuthorizationStatus.ActivationRequired or AuthorizationStatus.RecoveryRequired;
 
     private static AuthorizationStatus MapAuthorizationHttpFailure(HttpStatusCode statusCode) =>
         (int)statusCode >= 500
@@ -355,6 +376,7 @@ public enum AuthorizationStatus
     Authorized,
     Denied,
     ActivationRequired,
+    RecoveryRequired,
     ActivationCancelled,
     AgentUnavailable,
     Timeout,
