@@ -2,6 +2,8 @@ name: BKE.Notifications
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'src/BKE.Notifications/**'
       - 'tests/BKE.Notifications.Tests/**'
@@ -33,6 +35,6 @@ jobs:
       - run: dotnet pack src/BKE.Notifications/BKE.Notifications.csproj --configuration Release --output artifacts
       - uses: actions/upload-artifact@v4
         with:
-          name: BKE.Notifications-0.4.0
-          path: artifacts/BKE.Notifications.0.4.0.nupkg
+          name: BKE.Notifications-0.5.0
+          path: artifacts/BKE.Notifications.0.5.0.nupkg
           if-no-files-found: error
