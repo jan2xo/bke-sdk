@@ -144,6 +144,27 @@ public sealed class LicensingClientTests
     }
 
     [Fact]
+    public async Task EnsureAuthorized_ordinary_denial_does_not_open_license_center()
+    {
+        var calls = 0;
+        using var http = new HttpClient(new CallbackHandler(request =>
+        {
+            calls++;
+            Assert.EndsWith("/v1/authorize", request.RequestUri!.AbsoluteUri);
+            return Task.FromResult(Json(HttpStatusCode.OK,
+                "{\"authorized\":false,\"reason\":\"denied\"}"));
+        }));
+
+        using var client = BkeLicensingClient.Create(http);
+        var result = await client.EnsureAuthorizedAsync(
+            "bke-product", "1.0.0", "installation-1");
+
+        Assert.Equal(AuthorizationStatus.Denied, result.Status);
+        Assert.Equal("denied", result.Reason);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
     public async Task EnsureAuthorized_none_returns_activation_required_without_presenting_ui()
     {
         var calls = 0;
