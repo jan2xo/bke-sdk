@@ -4,7 +4,7 @@
     <AssemblyName>BKE.Desktop.Licensing</AssemblyName>
     <RootNamespace>BKE.Desktop.Licensing</RootNamespace>
 
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
     <PackageId>BKE.Desktop.Licensing</PackageId>
     <PackageTitle>BKE Desktop Licensing SDK</PackageTitle>
     <Authors>BKE Digital Solutions</Authors>
