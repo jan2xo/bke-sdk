@@ -1,0 +1,11 @@
+# PREPRODUCTION process-bound startup client for Render Dock
+
+**Intent:** The reusable `BKE.Desktop.Licensing` SDK, not Render Dock, owns the Windows named-pipe client contract for the already-existing Agent `bke-licensing-agent-standalone-startup-v1` service. Render Dock will call this client first from a **nonshippable preproduction startup-gated build** before enterprise, legacy grace, notifications or commercial activation can enter the UI. Normal customer build remains unchanged until the product's legacy grace and enterprise business policy is explicitly decided/certified.
+
+**Repo baseline:** SDK main `96e0fa533ff7efdf1657f4998c9a7691fc6e20c8`; Agent main `1bf1a6f7048918f6a19265f94f687d750bb01931`, previously merged process-bound Host pipe proof. DS main `9464d6814eb9606b0b2578daa29038c000ed7abc` has v1 DPAPI and v2 ES256 software-protocol authority, but **no real physical/installed TPM** proof.
+
+**Safety:** SDK sends only Agent-defined `{schema,operation,request_id}`, no product/user/license or unsigned authority. SDK must not accept a spoofed response from a random local pipe: verify Windows kernel server PID and process identity under the installed protected Agent runtime plus SYSTEM owner, then strictly match bounded response/request correlation; malformed/timeout/absent/replay/mismatch deny. No HTTP or direct DS calls. Only the Agent owns signing, installed policies, credential checks and durable audit.
+
+**Certification intent:** SDK-only `licensing` package + tests on exact head; required Linux .NET contract tests plus native Windows server-identity/pipe refusal tests if available. No Agent/DS re-certification when consuming unchanged exact contract; Render Dock source-pins the final merged SDK SHA and certifies its own product. Existing SDK CI still has legacy PR-triggered heavy workflows; do not claim that auto activity is intended. No public SDK release, production installation/release, signing cutover or deployments.
+
+**Exclusions:** Direct EXE anti-bypass customer E2E, physical TPM, two-admin real login, signed package release/install, legacy grace retirement, Air Stack customer acceptance. All remain unresolved until explicitly proven. Production locked.
