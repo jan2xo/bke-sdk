@@ -144,3 +144,29 @@ jobs:
           if-no-files-found: error
 
 # .NET 10 migration exact-head certification trigger
+
+  startup-gate-windows:
+    name: Windows installed-Agent impersonation refusal
+    runs-on: windows-2025
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact SDK candidate source
+        shell: pwsh
+        env:
+          REQUIRED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:REQUIRED_SOURCE_SHA) { throw "SDK startup gate candidate SHA mismatch" }
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Certify native Windows fake-pipe denial and strict response contract
+        shell: pwsh
+        run: |
+          dotnet test tests/BKE.Desktop.Licensing.Tests/BKE.Desktop.Licensing.Tests.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw "Native Windows SDK startup gate certification failed" }
